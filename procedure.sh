@@ -1,15 +1,56 @@
 #!/bin/bash
 
-declare NOCHECKS="44"
+declare -r NOCHECKS="51"
 declare RESULT=""
+declare -i SHOULD_NOT=0
+declare -i COULD_NOT=0
+declare -i SUCCESS=0
+declare -i WARNING=0
+declare -i CRITICAL=0
+
+# add should not be run
+function should_not_func()
+{
+	RESULT+="0"
+	let "SHOULD_NOT++"
+}
+
+# add could not be run
+function could_not_func()
+{
+	RESULT+="1"
+	let "COULD_NOT++"
+}
+
+# add success
+function success_func()
+{
+	RESULT+="2"
+	let "SUCCESS++"
+}
+
+# add warning
+function warning_func()
+{
+	RESULT+="3"
+	let "WARNING++"
+}
+
+# add critical
+function critical_func()
+{
+	RESULT+="4"
+	let "CRITICAL++"
+}
+
 # check if /var/log is mounted seperatly [WARNING]
 function var_log_mounted()
 {
 	df -h | grep -wq "/var/log"
 	if [ $? -ne 0 ]; then
-		RESULT+="3"
+		warning_func
 	else
-		RESULT+="2"
+		success_func
 	fi
 }
 
@@ -18,9 +59,9 @@ function tmp_log_mounted()
 {
 	df -h | grep -wq "/tmp"
         if [ $? -ne 0 ]; then
-                RESULT+="3"
+		warning_func
         else
-                RESULT+="2"
+		success_func
         fi
 }
 
@@ -29,9 +70,9 @@ function home_log_mounted()
 {
 	df -h | grep -wq "/home"
         if [ $? -ne 0 ]; then
-                RESULT+="3"
+		warning_func
         else
-                RESULT+="2"
+		success_func
         fi
 }
 
@@ -39,75 +80,125 @@ function home_log_mounted()
 function grub_password()
 {
 	if [ ! -f /boot/grub/grub.conf ]; then
-		RESULT+="1"
+		could_not_func
 	else
 		grep -q "password --md5" /boot/grub/grub.conf
 		if [ $? -ne 0 ]; then
-			RESULT+="4"
+			critical_func
 		else
-			RESULT+="2"
+			success_func
 		fi
 	fi
 }
 
-# check for static ip rather than dhcp
+# check for static ip rather than dhcp [WARNING]
 function static_ip()
 {
-	return
+	nic=$(route | grep default | awk '{print $NF}')
+	if [ ! -f /etc/sysconfig/network-scripts/ifcfg-$nic ]; then
+		could_not_func
+	else
+		egrep -iq "BOOTPROTO=static|BOOTPROTO=none"  /etc/sysconfig/network-scripts/ifcfg-$nic
+		if [ $? -ne 0 ]; then
+			warning_func
+		else
+			success_func
+		fi
+	fi
 }
 
-# check if kdump is disabled
+# check if kdump is disabled [CRITICAL]
 function kdump_disabled()
 {
-return
+	service kdump status > /dev/null
+	if [ $? -ne 3 ]; then
+		critical_func
+	else
+		success_func
+	fi
+	
 }
 
-# check if there is a PermitRootLogin no in sshd config
+# check if there is a PermitRootLogin no in sshd config [CRITICAL]
 function no_root_login()
 {
-return
+	egrep -q "^PermitRootLogin no" /etc/ssh/sshd_config
+	if [ $? -ne 0 ]; then
+		critical_func
+	else
+		success_func
+	fi
 }
 
-# check if the mounts are mounted with the 'nodev' parameter
+# check if the mounts are mounted with the 'nodev' parameter [WARNING]
 function nodev_mounts()
 {
-return
+	nodevs=$(mount | egrep -w "/|/home|/var/log" | awk '{print $NF}' | grep nodev | wc -l)
+	if [ "$nodevs" -ne 3 ]; then
+		warning_func
+	else
+		success_func
+	fi
 }
 
-# check if /tmp has 'nodev' 'noexec' 'nosuid' parameter
+# check if /tmp has 'nodev' 'noexec' 'nosuid' parameter [WARNING]
 function check_mount_params()
 {
-return
+	mount | grep -w "/tmp" | awk '{print $NF}' | grep nodev| grep noexec | grep -q nosuid
+	if [ $? -ne 0 ]; then
+		warning_func
+	else
+		success_func
+	fi
 }
 
-# check if /var/tmp/ is mounted at /tmp 
+# check if /var/tmp/ is mounted at /tmp [WARNING]
 function var_tmp()
 {
 return
 }
 
-# disable autofs
+# disable autofs [WARNING]
 function autofs_disabled()
 {
-return
+	service autofs status > /dev/null
+	if [ $? -eq 0 ]; then
+		warning_func
+	else
+		success_func
+	fi
 }
 
-# check for 'auth required pam_wheel.so use_uid' in /etc/pam.d/su
+# check for 'auth required pam_wheel.so use_uid' in /etc/pam.d/su [CRITICAL]
 function pam_wheel()
 {
-return
+	grep -q "auth required pam_wheel.so use_uid" /etc/pam.d/su
+	if [ $? -ne 0 ]; then
+		critical_func
+	else
+		success_func
+	fi
 }
 
-# check for 'Defaults:%wheel rootpw' '%wheel ALL=(ALL) /bin/su' in sudoers file
+# check for 'Defaults:%wheel rootpw' '%wheel ALL=(ALL) /bin/su' in sudoers file [CRITICAL]
 function sudoers_wheel()
 {
-return
+	grep -qr "Defaults:%wheel rootpw' '%wheel ALL=(ALL) /bin/su" /etc/sudoers*
+	if [ $? -ne 0 ]; then
+		critical_func
+	else
+		success_func
+	fi
 }
 
-# make sure SELinux is on and /etc/selinux/Config is enforcing
+# make sure SELinux is on and /etc/selinux/Config is enforcing [CRITICAL]
 function selinux_enabled()
 {
-return
+	if [ $(getenforce) != "Enforcing" ]; then 
+		critical_func
+	else
+		success_func
+	fi
 }
 
 # check for the following network parameters
@@ -130,8 +221,87 @@ return
 #"net.ipv6.conf.default.accept_redirects = 0"
 function sysctl_network_params()
 {
+lines="net.ipv4.conf.all.accept_source_route = 0
+net.ipv4.conf.default.accept_source_route = 0
+net.ipv4.icmp_echo_ignore_broadcasts = 1
+net.ipv4.icmp_ignore_bogus_error_messages = 1
+net.ipv4.tcp_syncookies = 1
+net.ipv4.conf.default.rp_filter = 1
+net.ipv4.conf.all.log_martians = 1
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.default.log_martians = 1
+net.ipv4.tcp_timestamps = 0"
+	
+	while IFS= read -r line
+	do
+		grep "$line" /etc/sysctl.conf
+	done <<<  "$lines"
+}
+
+function network_disable_redirects()
+{
+
+lines="net.ipv4.conf.all.secure_redirects = 0
+net.ipv4.conf.default.secure_redirects = 0
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.default.accept_redirects = 0
+net.ipv6.conf.all.accept_redirects = 0
+net.ipv6.conf.default.accept_redirects = 0"
+	
+	check="0"
+
+	while IFS= read -r line
+	do
+		grep -q "$line" /etc/sysctl.conf
+		if [ $? -ne 0 ]; then
+			check="1"
+		fi
+	
+	done <<< "$lines"
+	
+	if [ "$check" == "1" ]; then
+		warning_func
+	else
+		success_func
+	fi
+}
+
+function network_enable_rp_filter()
+{
 return
 }
+
+function network_enable_log_martians()
+{
+return
+}
+
+function network_ignore_broadcasts()
+{
+return
+}
+
+function network_reject_source_routes()
+{
+return
+}
+
+function network_ignore_bogus_error()
+{
+return
+}
+
+function network_enable_syn_cookies()
+{
+return
+}
+
+function network_disable_timestamp()
+{
+return
+}
+
 
 # check if the wireless driver is removed /lib/modules/<kernelversion>/kernel/drivers/net/wireless
 function wireless_disabled()
@@ -342,52 +512,64 @@ function main()
 		checks+="0"
 	done
 
-  	[ "${checks:0:1}" == "1" ] && var_log_mounted || RESULT+="0"
-  	[ "${checks:1:1}" == "1" ] && tmp_log_mounted || RESULT+="0"
-  	[ "${checks:2:1}" == "1" ] && home_log_mounted || RESULT+="0"
-  	[ "${checks:3:1}" == "1" ] && grub_password || RESULT+="0"
-  	[ "${checks:4:1}" == "1" ] && static_ip || RESULT+="0"
-	[ "${checks:5:1}" == "1" ] && kdump_disabled || RESULT+="0"
-  	[ "${checks:6:1}" == "1" ] && no_root_login || RESULT+="0"
-  	[ "${checks:7:1}" == "1" ] && nodev_mounts || RESULT+="0"
-  	[ "${checks:8:1}" == "1" ] && check_mount_params || RESULT+="0"
-  	[ "${checks:9:1}" == "1" ] && var_tmp || RESULT+="0"
-  	[ "${checks:10:1}" == "1" ] && autofs_disabled || RESULT+="0"
-  	[ "${checks:11:1}" == "1" ] && pam_wheel || RESULT+="0"
-  	[ "${checks:12:1}" == "1" ] && sudoers_wheel || RESULT+="0"
-  	[ "${checks:13:1}" == "1" ] && selinux_enabled || RESULT+="0"
-  	[ "${checks:14:1}" == "1" ] && sysctl_network_params || RESULT+="0"
-	[ "${checks:15:1}" == "1" ] && wireless_disabled || RESULT+="0"
-  	[ "${checks:16:1}" == "1" ] && ipv6_disabled || RESULT+="0"
-  	[ "${checks:17:1}" == "1" ] && zeroconf_disabled || RESULT+="0"
-  	[ "${checks:18:1}" == "1" ] && avahi_service || RESULT+="0"
-  	[ "${checks:19:1}" == "1" ] && cups_service || RESULT+="0"
-  	[ "${checks:20:1}" == "1" ] && bluetooth_service || RESULT+="0"
-  	[ "${checks:21:1}" == "1" ] && firstboot_service || RESULT+="0"
-  	[ "${checks:22:1}" == "1" ] && NetworkManager_service || RESULT+="0"
-  	[ "${checks:23:1}" == "1" ] && rhnsd_service || RESULT+="0"
-  	[ "${checks:24:1}" == "1" ] && mdmonitor_service || RESULT+="0"
-	[ "${checks:25:1}" == "1" ] && ipv6_iptables || RESULT+="0"
-  	[ "${checks:26:1}" == "1" ] && ipv4_iptables || RESULT+="0"
-  	[ "${checks:27:1}" == "1" ] && telnet_rpm || RESULT+="0"
-  	[ "${checks:28:1}" == "1" ] && krb5-workstation_rpm || RESULT+="0"
-  	[ "${checks:29:1}" == "1" ] && ypbind_rpm || RESULT+="0"
-  	[ "${checks:30:1}" == "1" ] && rhnsd_rpm || RESULT+="0"
-  	[ "${checks:31:1}" == "1" ] && gcc_rpm || RESULT+="0"
-  	[ "${checks:32:1}" == "1" ] && allow_users || RESULT+="0"
-  	[ "${checks:33:1}" == "1" ] && disable_nfs || RESULT+="0"
-  	[ "${checks:34:1}" == "1" ] && execshield_enabled || RESULT+="0"
-	[ "${checks:35:1}" == "1" ] && randomize_va_space_enabled || RESULT+="0"
-  	[ "${checks:36:1}" == "1" ] && selinux_memory_protection || RESULT+="0"
-  	[ "${checks:37:1}" == "1" ] && file_permissions || RESULT+="0"
-  	[ "${checks:38:1}" == "1" ] && sudo_errors || RESULT+="0"
-  	[ "${checks:39:1}" == "1" ] && ip_conflict || RESULT+="0"
-  	[ "${checks:40:1}" == "1" ] && zombie_processes || RESULT+="0"
-  	[ "${checks:41:1}" == "1" ] && hosts_lines || RESULT+="0"
-  	[ "${checks:42:1}" == "1" ] && secure_yum_repos || RESULT+="0"
-  	[ "${checks:43:1}" == "1" ] && authorized_keys || RESULT+="0"
+  	if [ "${checks:0:1}" == "1" ]; then var_log_mounted;else should_not_func; fi
+  	if [ "${checks:1:1}" == "1" ]; then tmp_log_mounted; else should_not_func; fi
+  	if [ "${checks:2:1}" == "1" ]; then home_log_mounted; else should_not_func; fi
+  	if [ "${checks:3:1}" == "1" ]; then grub_password; else should_not_func; fi
+  	if [ "${checks:4:1}" == "1" ]; then static_ip ; else should_not_func; fi
+	if [ "${checks:5:1}" == "1" ]; then kdump_disabled ; else should_not_func; fi
+  	if [ "${checks:6:1}" == "1" ]; then no_root_login ; else should_not_func; fi
+  	if [ "${checks:7:1}" == "1" ]; then nodev_mounts ; else should_not_func; fi
+  	if [ "${checks:8:1}" == "1" ]; then check_mount_params ; else should_not_func; fi
+  	if [ "${checks:9:1}" == "1" ]; then var_tmp ; else should_not_func; fi
+  	if [ "${checks:10:1}" == "1" ]; then autofs_disabled ; else should_not_func; fi
+  	if [ "${checks:11:1}" == "1" ]; then pam_wheel ; else should_not_func; fi
+  	if [ "${checks:12:1}" == "1" ]; then sudoers_wheel ; else should_not_func; fi
+  	if [ "${checks:13:1}" == "1" ]; then selinux_enabled ; else should_not_func; fi
+  	if [ "${checks:14:1}" == "1" ]; then network_disable_redirects ; else should_not_func; fi
+  	if [ "${checks:15:1}" == "1" ]; then network_enable_rp_filter ; else should_not_func; fi
+  	if [ "${checks:16:1}" == "1" ]; then network_enable_log_martians ; else should_not_func; fi
+  	if [ "${checks:17:1}" == "1" ]; then network_ignore_broadcasts ; else should_not_func; fi
+  	if [ "${checks:18:1}" == "1" ]; then network_reject_source_routes ; else should_not_func; fi
+  	if [ "${checks:19:1}" == "1" ]; then network_ignore_bogus_error ; else should_not_func; fi
+  	if [ "${checks:20:1}" == "1" ]; then network_enable_syn_cookies ; else should_not_func; fi
+  	if [ "${checks:21:1}" == "1" ]; then network_disable_timestamp ; else should_not_func; fi
+	if [ "${checks:22:1}" == "1" ]; then wireless_disabled ; else should_not_func; fi
+  	if [ "${checks:23:1}" == "1" ]; then ipv6_disabled ; else should_not_func; fi
+  	if [ "${checks:24:1}" == "1" ]; then zeroconf_disabled ; else should_not_func; fi
+  	if [ "${checks:25:1}" == "1" ]; then avahi_service ; else should_not_func; fi
+  	if [ "${checks:26:1}" == "1" ]; then cups_service ; else should_not_func; fi
+  	if [ "${checks:27:1}" == "1" ]; then bluetooth_service ; else should_not_func; fi
+  	if [ "${checks:28:1}" == "1" ]; then firstboot_service ; else should_not_func; fi
+  	if [ "${checks:29:1}" == "1" ]; then NetworkManager_service ; else should_not_func; fi
+  	if [ "${checks:30:1}" == "1" ]; then rhnsd_service ; else should_not_func; fi
+  	if [ "${checks:31:1}" == "1" ]; then mdmonitor_service ; else should_not_func; fi
+	if [ "${checks:32:1}" == "1" ]; then ipv6_iptables ; else should_not_func; fi
+  	if [ "${checks:33:1}" == "1" ]; then ipv4_iptables ; else should_not_func; fi
+  	if [ "${checks:34:1}" == "1" ]; then telnet_rpm ; else should_not_func; fi
+  	if [ "${checks:35:1}" == "1" ]; then krb5-workstation_rpm ; else should_not_func; fi
+  	if [ "${checks:36:1}" == "1" ]; then ypbind_rpm ; else should_not_func; fi
+  	if [ "${checks:37:1}" == "1" ]; then rhnsd_rpm ; else should_not_func; fi
+  	if [ "${checks:38:1}" == "1" ]; then gcc_rpm ; else should_not_func; fi
+  	if [ "${checks:39:1}" == "1" ]; then allow_users ; else should_not_func; fi
+  	if [ "${checks:40:1}" == "1" ]; then disable_nfs ; else should_not_func; fi
+  	if [ "${checks:41:1}" == "1" ]; then execshield_enabled ; else should_not_func; fi
+	if [ "${checks:42:1}" == "1" ]; then randomize_va_space_enabled ; else should_not_func; fi
+  	if [ "${checks:43:1}" == "1" ]; then selinux_memory_protection ; else should_not_func; fi
+  	if [ "${checks:44:1}" == "1" ]; then file_permissions ; else should_not_func; fi
+  	if [ "${checks:45:1}" == "1" ]; then sudo_errors ; else should_not_func; fi
+  	if [ "${checks:46:1}" == "1" ]; then ip_conflict ; else should_not_func; fi
+  	if [ "${checks:47:1}" == "1" ]; then zombie_processes ; else should_not_func; fi
+  	if [ "${checks:48:1}" == "1" ]; then hosts_lines ; else should_not_func; fi
+  	if [ "${checks:49:1}" == "1" ]; then secure_yum_repos ; else should_not_func; fi
+  	if [ "${checks:50:1}" == "1" ]; then authorized_keys ; else should_not_func; fi
 
 	echo $RESULT
+	echo "should not be run: $SHOULD_NOT"
+	echo "could not be run: $COULD_NOT"
+	echo "successful: $SUCCESS"
+	echo "warnings: $WARNING"
+	echo "criticals: $CRITICAL"
 }
 
 main $@
