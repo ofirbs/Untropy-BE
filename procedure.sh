@@ -1,12 +1,15 @@
 #!/bin/bash
 
-declare -r NOCHECKS="51"
+# global variables
+declare -r NOCHECKS="49"
 declare RESULT=""
 declare -i SHOULD_NOT=0
 declare -i COULD_NOT=0
 declare -i SUCCESS=0
 declare -i WARNING=0
 declare -i CRITICAL=0
+declare NIC
+declare IP
 
 # add should not be run
 function should_not_func()
@@ -41,6 +44,13 @@ function critical_func()
 {
 	RESULT+="4"
 	let "CRITICAL++"
+}
+
+# configure global variables
+function config_globals()
+{
+	NIC=$(route | grep default | awk '{print $NF}')
+	IP=$(echo $NIC | xargs ifconfig | egrep "inet addr:|inet " | awk '{print $2}' | cut -d : -f 2)
 }
 
 # check if /var/log is mounted seperatly [WARNING]
@@ -94,11 +104,10 @@ function grub_password()
 # check for static ip rather than dhcp [WARNING]
 function static_ip()
 {
-	nic=$(route | grep default | awk '{print $NF}')
-	if [ ! -f /etc/sysconfig/network-scripts/ifcfg-$nic ]; then
+	if [ ! -f /etc/sysconfig/network-scripts/ifcfg-$NIC ]; then
 		could_not_func
 	else
-		egrep -iq "BOOTPROTO=static|BOOTPROTO=none"  /etc/sysconfig/network-scripts/ifcfg-$nic
+		egrep -iq "BOOTPROTO=static|BOOTPROTO=none"  /etc/sysconfig/network-scripts/ifcfg-$NIC
 		if [ $? -ne 0 ]; then
 			warning_func
 		else
@@ -201,43 +210,6 @@ function selinux_enabled()
 	fi
 }
 
-# check for the following network parameters
-#"net.ipv4.conf.all.accept_source_route = 0"
-#"net.ipv4.conf.all.secure_redirects = 0"
-#"net.ipv4.conf.default.accept_source_route = 0"
-#"net.ipv4.conf.default.secure_redirects = 0"
-#"net.ipv4.icmp_echo_ignore_broadcasts = 1"
-#"net.ipv4.icmp_ignore_bogus_error_messages = 1"
-#"net.ipv4.tcp_syncookies = 1"
-#"net.ipv4.conf.default.rp_filter = 1"
-#"net.ipv4.conf.all.accept_redirects = 0"
-#"net.ipv4.conf.all.log_martians = 1"
-#"net.ipv4.conf.all.rp_filter = 1"
-#"net.ipv4.conf.all.send_redirects = 0"
-#"net.ipv4.conf.default.accept_redirects = 0"
-#"net.ipv4.conf.default.log_martians = 1"
-#"net.ipv4.tcp_timestamps = 0"
-#"net.ipv6.conf.all.accept_redirects = 0"
-#"net.ipv6.conf.default.accept_redirects = 0"
-function sysctl_network_params()
-{
-lines="net.ipv4.conf.all.accept_source_route = 0
-net.ipv4.conf.default.accept_source_route = 0
-net.ipv4.icmp_echo_ignore_broadcasts = 1
-net.ipv4.icmp_ignore_bogus_error_messages = 1
-net.ipv4.tcp_syncookies = 1
-net.ipv4.conf.default.rp_filter = 1
-net.ipv4.conf.all.log_martians = 1
-net.ipv4.conf.all.rp_filter = 1
-net.ipv4.conf.default.log_martians = 1
-net.ipv4.tcp_timestamps = 0"
-	
-	while IFS= read -r line
-	do
-		grep "$line" /etc/sysctl.conf
-	done <<<  "$lines"
-}
-
 function network_disable_redirects()
 {
 
@@ -253,7 +225,7 @@ net.ipv6.conf.default.accept_redirects = 0"
 
 	while IFS= read -r line
 	do
-		grep -q "$line" /etc/sysctl.conf
+		sysctl -a | grep -q "$line" 
 		if [ $? -ne 0 ]; then
 			check="1"
 		fi
@@ -269,244 +241,428 @@ net.ipv6.conf.default.accept_redirects = 0"
 
 function network_enable_rp_filter()
 {
-return
+	sysctl -a | grep "net.ipv4.conf.all.rp_filter = 1" | grep -q "net.ipv4.conf.default.rp_filter = 1"
+	if [ $? -ne 0 ]; then
+		warning_func
+	else
+		success_func
+	fi
 }
 
 function network_enable_log_martians()
 {
-return
+	sysctl -a | grep "net.ipv4.conf.all.log_martians = 1" | grep -q "net.ipv4.conf.default.log_martians = 1"
+	if [ $? -ne 0 ]; then
+		warning_func
+	else
+		success_func
+	fi
 }
 
 function network_ignore_broadcasts()
 {
-return
+	sysctl -a | grep -q "net.ipv4.icmp_echo_ignore_broadcasts = 1"
+	if [ $? -ne 0 ]; then
+		warning_func
+	else
+		success_func
+	fi
 }
 
 function network_reject_source_routes()
 {
-return
+	sysctl -a | grep "net.ipv4.conf.default.accept_source_route = 0" | grep -q "net.ipv4.conf.all.accept_source_route = 0"
+	if [ $? -ne 0 ]; then
+		warning_func
+	else
+		success_func
+	fi
 }
 
 function network_ignore_bogus_error()
 {
-return
+	sysctl -a | grep -q "net.ipv4.icmp_ignore_bogus_error_messages = 1"
+	if [ $? -ne 0 ]; then
+		warning_func
+	else
+		success_func
+	fi
 }
 
 function network_enable_syn_cookies()
 {
-return
+	sysctl -a | grep -q "net.ipv4.tcp_syncookies = 1"
+	if [ $? -ne 0 ]; then
+		warning_func
+	else
+		success_func
+	fi
 }
+
 
 function network_disable_timestamp()
 {
-return
+	sysctl -a | grep -q "net.ipv4.tcp_timestamps = 0"
+	if [ $? -ne 0 ]; then
+		warning_func
+	else
+		success_func
+	fi
 }
 
 
-# check if the wireless driver is removed /lib/modules/<kernelversion>/kernel/drivers/net/wireless
+# check if the wireless driver is removed /lib/modules/<kernelversion>/kernel/drivers/net/wireless [WARNING]
 function wireless_disabled()
 {
-return
+	if [ -d /lib/modules/$(uname -r)/kernel/drivers/net/wireless ]; then
+		warning_func
+	else
+		success_func
+	fi
 }
 
-# check if ipv6 is disabled via 'NETWORKING_IPV6=0' 'IPV6INIT=no' 'IPV6_AUTHCONF=no' in /etc/sysconfig/network
+# check if ipv6 is disabled via 'NETWORKING_IPV6=0' 'IPV6INIT=no' 'IPV6_AUTHCONF=no' in /etc/sysconfig/network [WARNING]
 function ipv6_disabled()
 {
-return
+	cat /etc/sysconfig/network | grep "NETWORKING_IPV6=0" | grep "IPV6INIT=no" | grep -q "IPV6_AUTHCONF=no"
+	if [ $? -ne 0 ]; then
+		warning_func
+	else
+		success_func
+	fi
 }
 
-# check if zeroconf is disabled via 'NOZEROCONF=yes'
+# check if zeroconf is disabled via 'NOZEROCONF=yes' [WARNING]
 function zeroconf_disabled()
 {
-return
+	cat /etc/sysconfig/network | grep "NOZEROCONF=yes"
+	if [ $? -ne 0 ]; then
+		warning_func
+	else
+		success_func
+	fi
 }
 
-# check if avahi service is disabled
+# check if avahi service is disabled [WARNING]
 function avahi_service()
 {
-return
+	service avahi-daemon status &>/dev/null
+	if [ $? -eq 0 ]; then
+		warning_func
+	else
+		success_func
+	fi
 }
 
-# check if the cups service is disabled
+# check if the cups service is disabled [WARNING]
 function cups_service()
 {
-return
+	service cups status &>/dev/null
+        if [ $? -eq 0 ]; then
+                warning_func
+        else
+                success_func
+        fi
 }
 
-# check if the bluetooth service is disabled
+# check if the bluetooth service is disabled [WARNING]
 function bluetooth_service()
 {
-return
+	service bluetooth status &>/dev/null
+        if [ $? -eq 0 ]; then
+                warning_func
+        else
+                success_func
+        fi
 }
 
-# check if the firstboot service is disabled
+# check if the firstboot service is disabled [WARNING]
 function firstboot_service()
 {
-return
+	FILENAME=/etc/sysconfig/firstboot
+	if [ ! -f $FILENAME ] || [ -z "$(grep 'RUN_FIRSTBOOT=NO' $FILENAME)" ]; then
+		warning_func
+	else
+		success_func
+	fi
 }
 
-# check if the NetworkManager service is disabled
+# check if the NetworkManager service is disabled [WARNING]
 function NetworkManager_service()
 {
-return
+	service NetworkManager status &>/dev/null
+        if [ $? -eq 0 ]; then
+                warning_func
+        else
+                success_func
+        fi
 }
 
-# check if the rhnsd service is disabled
+# check if the rhnsd service is disabled [WARNING]
 function rhnsd_service()
 {
-return
+	service rhnsd status &>/dev/null
+        if [ $? -eq 0 ]; then
+                warning_func
+        else
+                success_func
+        fi
 }
 
-# check if the mdmonitor service is disabled
+# check if the mdmonitor service is disabled [WARNING]
 function mdmonitor_service()
 {
-return
+	service mdmonitor status &>/dev/null
+        if [ $? -eq 0 ]; then
+                warning_func
+        else
+                success_func
+        fi
 }
 
-# check if ipv6 is disabled via iptables
-# in /etc/sysconfig/iptables there are:
-#":INPUT ACCEPT [0:0]
-#:FORWARD ACCEPT [0:0]
-#:OUTPUT ACCEPT [0:0]
-#-A INPUT -j REJECT --reject-with icmp6-port-unreachable
-#-A FORWARD -j REJECT --reject-with icmp6-port-unreachable
-#-A OUTPUT -j REJECT --reject-with icmp6-port-unreachable
-#COMMIT"
+# check if ipv6 is disabled via iptables [WARNING]
 function ipv6_iptables()
 {
-return
+	lines=":INPUT ACCEPT \[0:0\]
+:FORWARD ACCEPT \[0:0\]
+:OUTPUT ACCEPT \[0:0\]
+-A INPUT -j REJECT --reject-with icmp6-port-unreachable
+-A FORWARD -j REJECT --reject-with icmp6-port-unreachable
+-A OUTPUT -j REJECT --reject-with icmp6-port-unreachable
+COMMIT"
+
+        check="0"
+
+        while IFS= read -r line
+        do
+                grep -q -- "$line" /etc/sysconfig/iptables
+                if [ $? -ne 0 ]; then
+                        check="1"
+                fi
+
+        done <<< "$lines"
+
+        if [ "$check" == "1" ]; then
+                warning_func
+        else
+                success_func
+        fi
 }
 
-# allow only the allowed port via iptables (accept parameters with chain,protocol,port)
-#":INPUT ACCEPT [0:0]
-#:FORWARD ACCEPT [0:0]
-#:OUTPUT ACCEPT [0:0]
-#-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
-#-A INPUT -p icmp -j ACCEPT
-#-A INPUT -i lo -j ACCEPT
-#-A INPUT -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT
-#-A INPUT -j REJECT --reject-with icmp-port-unreachable
-#-A FORWARD -j REJECT --reject-with icmp-port-unreachable
-#COMMIT"
+# allow only the allowed port via iptables (accept parameters with chain,protocol,port) [CRITICAL]
 function ipv4_iptables()
 {
-return
+	lines=":INPUT ACCEPT \[0:0\]
+:FORWARD ACCEPT \[0:0\]
+:OUTPUT ACCEPT \[0:0\]
+-A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+-A INPUT -p icmp -j ACCEPT
+-A INPUT -i lo -j ACCEPT
+-A INPUT -m state --state NEW -m tcp -p tcp --dport 22 -j ACCEPT
+-A INPUT -j REJECT --reject-with icmp-port-unreachable
+-A FORWARD -j REJECT --reject-with icmp-port-unreachable
+COMMIT"
+	check="0"
+
+        while IFS= read -r line
+        do
+                grep -q -- "$line" /etc/sysconfig/iptables
+                if [ $? -ne 0 ]; then
+                        check="1"
+			echo "$line"
+                fi
+
+        done <<< "$lines"
+
+        if [ "$check" == "1" ]; then
+                critical_func
+        else
+                success_func
+        fi
 }
 
-# check if the 'telnet' is not installed   
+# check if the 'telnet' is not installed [CRITICAL]
 function telnet_rpm()
 {
-return
+	rpm -q --quiet telnet
+	if [ $? -eq 0 ]; then
+		critical_func
+	else
+		success_func
+	fi
 }
 
-# check if the 'krb5-workstation' is not installed
+# check if the 'krb5-workstation' is not installed [WARNING]
 function krb5-workstation_rpm()
 {
-return
+	rpm -q --quiet krb5-workstation
+        if [ $? -eq 0 ]; then
+                warning_func
+        else
+                success_func
+        fi
 }
 
-# check if the 'ypbind' is not installed
+# check if the 'ypbind' is not installed [WARNING]
 function ypbind_rpm()
 {
-return
+	rpm -q --quiet ypbind
+        if [ $? -eq 0 ]; then
+                warning_func
+        else
+                success_func
+        fi
 }
 
-# check if the 'rhnsd' is not installed
+# check if the 'rhnsd' is not installed [WARNING]
 function rhnsd_rpm()
 {
-return
+	rpm -q --quiet rhnsd
+        if [ $? -eq 0 ]; then
+                warning_func
+        else
+                success_func
+        fi
 }
 
 
-# check if the gcc package is not installed
+# check if the gcc package is not installed [CRITICAL]
 function gcc_rpm()
 {
-return
+	rpm -q --quiet gcc
+        if [ $? -eq 0 ]; then
+                critical_func
+        else
+                success_func
+        fi
 }
 
-# allow only certain users to login (accept parameter containing the user name)
-# 'AllowUsers root <user>' in /etc/ssh/sshd_config
-function allow_users()
-{
-return
-}
-
-# disable nfs service 
+# disable nfs service [WARNING]
 function disable_nfs()
 {
-return
+	service nfs status &>/dev/null
+        if [ $? -eq 0 ]; then
+                warning_func
+        else
+                success_func
+        fi	
 }
 
-# check if execshield is enabled 'sysctl -a | grep kernel.exec-shield' is not 0
+# check if execshield is enabled 'sysctl -a | grep kernel.exec-shield' is not 0 [CRITICAL]
 function execshield_enabled()
 {
-return
+	sysctl -a | grep -q "kernel.exec-shield = 0"
+	if [ $? -eq 0 ]; then
+		critical_func
+	else
+		success_func
+	fi
 }
 
-# check if randomize vs space is enabled 'sysctl -a | grep randomize_va_space' is not 0
+# check if randomize vs space is enabled 'sysctl -a | grep randomize_va_space' is not 0 [CRITICAL]
 function randomize_va_space_enabled()
 {
-return
+	sysctl -a | grep -q "randomize_va_space = 0"
+        if [ $? -eq 0 ]; then
+                critical_func
+        else
+                success_func
+        fi
 }
 
-# check if the SELinux boolean for executable memory protection is enabled
-# "allow_execmod=off allow_execmem=off allow_execheap_off allow_execstack=off"
+# check if the SELinux boolean for executable memory protection is enabled [CRITICAL]
+# "allow_execmod=off allow_execmem=off allow_execheap=off allow_execstack=off"
 function selinux_memory_protection()
 {
-return
+	getsebool -a | grep "allow_execstack --> off" | grep "allow_execmod --> off" | grep "allow_execmem --> off" | grep -q "allow_execheap --> off"
+	if [ $? -ne 0 ]; then
+		critical_func
+	else
+		success_func
+	fi
 }
 
-# check for important files permissions [checkit]
+# check for important files permissions [CRITICAL]
 function file_permissions()
 {
-return
+	local error="0"
+	local PACKAGES="sudo setup"
+	for package in $(echo $PACKAGES); do
+		bad_files=$(rpm -V $package | egrep "^.M")
+		if [ "$bad_files" ]; then
+			critical_func
+			error="1"
+		fi
+	done
+	if [ "$error" == "0" ]; then
+		success_func
+	fi
 }
 
-# check for sudo errors [checkit]
+# check for sudo errors [CRITICAL]
 function sudo_errors()
 {
-return
+	visudo -c &>/dev/null
+	if [ $? -ne 0 ]; then
+		critical_func
+	else
+		success_func
+	fi
 }
 
-# check for ip conflicts [checkit]
+# check for ip conflicts [CRITICAL]
 function ip_conflict()
 {
-return
+	local ips_count=$(host $IP | wc -l)
+	if [ "$ips_count" -gt 1 ]; then
+		critical_func
+	else
+		success_func
+	fi
 }
 
-# check for zombie processes [checkit]
+# check for zombie processes [CRITICAL]
 function zombie_processes()
 {
-return
+	local zombies=$(ps aux | awk 'FNR>1{if ($8 =="Z") print $2}' | paste -s -d '&' | sed 's/&/ & /g')
+	local defuncts=$(ps aux | awk 'FNR>1{if ($8 =="D") print $2}' | paste -s -d '&' | sed 's/&/ & /g')
+	if [ "$zombies" != "" ] || [ "$defuncts" != "" ]; then
+		critical_func
+	else
+		success_func
+	fi
 }
 
-# check for unnecessary lines in /etc/hosts [checkit]
+# check for unnecessary lines in /etc/hosts [WARNING]
 function hosts_lines()
 {
-return
+	local lines=$(cat /etc/hosts | grep -v "127.0.0.1" | grep -v "::1" | sed -e '/^$/d' | sed -e '/^#/d' | wc -l)
+	if [ "$lines" -gt 0 ]; then
+		warning_func
+	else
+		success_func
+	fi
 }
 
-# check for unsecure yum repos [unimplemented]
+# check for unsecure yum repos [CRITICAL]
 function secure_yum_repos()
 {
-return
+	grep -q -r "gpgcheck=0" /etc/yum.repos.d/
+	if [ $? -eq 0 ]; then
+		critical_func
+	else
+		success_func
+	fi
 }
-
-# check that authorized keys file is empty (or just the main server's key)
-function authorized_keys()
-{
-return
-}
-
  
 
 function main()
 {
 	checks="$1"
+	config_globals
 	
 	# pad zeros to check string
 	local diff=$(($NOCHECKS-${#checks}))
-	echo $diff
 	for i in $(seq $diff)
 	do
 		checks+="0"
@@ -551,18 +707,16 @@ function main()
   	if [ "${checks:36:1}" == "1" ]; then ypbind_rpm ; else should_not_func; fi
   	if [ "${checks:37:1}" == "1" ]; then rhnsd_rpm ; else should_not_func; fi
   	if [ "${checks:38:1}" == "1" ]; then gcc_rpm ; else should_not_func; fi
-  	if [ "${checks:39:1}" == "1" ]; then allow_users ; else should_not_func; fi
-  	if [ "${checks:40:1}" == "1" ]; then disable_nfs ; else should_not_func; fi
-  	if [ "${checks:41:1}" == "1" ]; then execshield_enabled ; else should_not_func; fi
-	if [ "${checks:42:1}" == "1" ]; then randomize_va_space_enabled ; else should_not_func; fi
-  	if [ "${checks:43:1}" == "1" ]; then selinux_memory_protection ; else should_not_func; fi
-  	if [ "${checks:44:1}" == "1" ]; then file_permissions ; else should_not_func; fi
-  	if [ "${checks:45:1}" == "1" ]; then sudo_errors ; else should_not_func; fi
-  	if [ "${checks:46:1}" == "1" ]; then ip_conflict ; else should_not_func; fi
-  	if [ "${checks:47:1}" == "1" ]; then zombie_processes ; else should_not_func; fi
-  	if [ "${checks:48:1}" == "1" ]; then hosts_lines ; else should_not_func; fi
-  	if [ "${checks:49:1}" == "1" ]; then secure_yum_repos ; else should_not_func; fi
-  	if [ "${checks:50:1}" == "1" ]; then authorized_keys ; else should_not_func; fi
+  	if [ "${checks:39:1}" == "1" ]; then disable_nfs ; else should_not_func; fi
+  	if [ "${checks:40:1}" == "1" ]; then execshield_enabled ; else should_not_func; fi
+	if [ "${checks:41:1}" == "1" ]; then randomize_va_space_enabled ; else should_not_func; fi
+  	if [ "${checks:42:1}" == "1" ]; then selinux_memory_protection ; else should_not_func; fi
+  	if [ "${checks:43:1}" == "1" ]; then file_permissions ; else should_not_func; fi
+  	if [ "${checks:44:1}" == "1" ]; then sudo_errors ; else should_not_func; fi
+  	if [ "${checks:45:1}" == "1" ]; then ip_conflict ; else should_not_func; fi
+  	if [ "${checks:46:1}" == "1" ]; then zombie_processes ; else should_not_func; fi
+  	if [ "${checks:47:1}" == "1" ]; then hosts_lines ; else should_not_func; fi
+  	if [ "${checks:48:1}" == "1" ]; then secure_yum_repos ; else should_not_func; fi
 
 	echo $RESULT
 	echo "should not be run: $SHOULD_NOT"
