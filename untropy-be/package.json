@@ -1,0 +1,22 @@
+{
+  "name": "untropy-be",
+  "version": "1.0.0",
+  "description": "untropy backend",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ofirbs/Untropy-BE.git"
+  },
+  "author": "ofir Ben Shahar\u001b[H\u001b[D\u001b[C\u001b[D\u001b[F\u001b[6~\u001b[5~\u001b[5~\u001b[6~\u001b",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ofirbs/Untropy-BE/issues"
+  },
+  "homepage": "https://github.com/ofirbs/Untropy-BE#readme",
+  "dependencies": {
+    "express": "^4.16.3"
+  }
+}
