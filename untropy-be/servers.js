@@ -37,13 +37,28 @@ serversRouter.get('/:id', (req, res, next) => {
 
 // Create a server
 serversRouter.post('/', (req, res, next) => {
-  const receivedServer = createElement('server', req.query);
-  if (receivedServer) {
-    servers.push(receivedServer);
-    res.status(201).send(receivedServer);
-  } else {
-    res.status(400).send();
-  }
+  var serverInfo = req.body;
+  console.log(serverInfo.name);
+  res.send("OK");
+  /*if(!serverInfo.name || !serverInfo.ip || !serverInfo.checks){
+      res.render('show_message', {
+         message: "Sorry, you provided worng info", type: "error"});
+   } 
+   else {
+      var newServer = new servers({
+        name: serverInfo.name,
+        ip: serverInfo.ip,
+        checks: serverInfo.checks
+      });
+		
+      newServer.save(function(err, servers){
+         if(err)
+            res.render('show_message', {message: "Database error", type: "error"});
+         else
+            res.render('show_message', {
+               message: "New server added", type: "success", server: personInfo});
+      });
+	}*/
 });
 
 // Update a server
