@@ -12,7 +12,7 @@ the backup for the mongodb data
 the express backend server
 <br><br><br>
 ### Rest API
-<u>Checks:</u><br>
+* Checks:<br>
 ```
 http://localhost:3000/checks [GET]<br>
 ```
@@ -21,7 +21,7 @@ http://localhost:3000/checks [GET]<br>
 http://localhost:3000/checks/<Position> [GET]<br>
 ```
 
-<u>Servers:</u><br>
+* Servers:<br>
 ```
 http://localhost:3000/servers [GET] <br>
 ```
