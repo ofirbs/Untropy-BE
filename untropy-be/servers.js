@@ -38,11 +38,10 @@ serversRouter.get('/:id', (req, res, next) => {
 // Create a server
 serversRouter.post('/', (req, res, next) => {
   var serverInfo = req.body;
-  console.log(serverInfo.name);
-  res.send("OK");
-  /*if(!serverInfo.name || !serverInfo.ip || !serverInfo.checks){
-      res.render('show_message', {
-         message: "Sorry, you provided worng info", type: "error"});
+  //console.log(serverInfo.name);
+  //res.send("OK");
+  if(!serverInfo.name || !serverInfo.ip || !serverInfo.checks){
+      res.send("Sorry, you provided worng info");
    } 
    else {
       var newServer = new servers({
@@ -53,12 +52,11 @@ serversRouter.post('/', (req, res, next) => {
 		
       newServer.save(function(err, servers){
          if(err)
-            res.render('show_message', {message: "Database error", type: "error"});
+            res.send("Database error");
          else
-            res.render('show_message', {
-               message: "New server added", type: "success", server: personInfo});
+            res.send("success");
       });
-	}*/
+	}
 });
 
 // Update a server
@@ -74,13 +72,11 @@ serversRouter.put('/:id', (req, res, next) => {
 
 // Delete a single server
 serversRouter.delete('/:id', (req, res, next) => {
-  const serverIndex = getIndexById(req.params.id, servers);
-  if (serverIndex !== -1) {
-    servers.splice(serverIndex, 1);
-    res.status(204).send();
-  } else {
-    res.status(404).send();
-  }
+  const serverId = req.params.id;
+  servers.remove({"_id" : serverId},function(err, response) {
+	if (err) throw err;
+	res.send(response);
+  });
 });
 
 module.exports = serversRouter;

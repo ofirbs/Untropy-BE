@@ -11,16 +11,12 @@ the backup for the mongodb data
 # untropy-be
 the express backend server
 
-Get All Checks:
-http://localhost:3000/checks
+Checks:
+http://localhost:3000/checks [GET]
+http://localhost:3000/checks/<Position> [GET]
 
-Get check that has position <Int>:
-http://localhost:3000/checks/<Position>
-for example: http://localhost:3000/checks/21
-
-Get all servers:
-http://localhost:3000/servers
-
-Get a server with id:
-http://localhost:3000/servers/<Server ID>
-for example: http://localhost:3000/servers/5b05383562de8b0cb4459fba
+Servers
+http://localhost:3000/servers [GET]
+http://localhost:3000/servers/<Server ID> [GET]
+http://localhost:3000/servers [PUT] (add params in the 'x-www-form-urlencoded' body {name:test, ip:10.0.0.1, checks:1111111111111111111111111111111111111111111111111"})
+http://localhost:3000/servers/<Server ID> [DELETE]
