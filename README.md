@@ -16,6 +16,7 @@ http://localhost:3000/checks [GET]
 http://localhost:3000/checks/<Position> [GET]
 
 Servers
+
 http://localhost:3000/servers [GET]
 http://localhost:3000/servers/<Server ID> [GET]
 http://localhost:3000/servers [PUT] (add params in the 'x-www-form-urlencoded' body {name:test, ip:10.0.0.1, checks:1111111111111111111111111111111111111111111111111"})
