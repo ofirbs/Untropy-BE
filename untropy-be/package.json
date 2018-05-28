@@ -18,6 +18,7 @@
   "homepage": "https://github.com/ofirbs/Untropy-BE#readme",
   "dependencies": {
     "express": "^4.16.3",
-    "mongoose": "^5.1.2"
+    "mongoose": "^5.1.2",
+    "ssh2": "^0.6.1"
   }
 }

@@ -39,3 +39,6 @@ http://localhost:3000/servers [PUT]
 http://localhost:3000/servers/<Server ID> [DELETE]
 ```
 
+```
+http://localhost:3000/servers/<Server ID> [PUT]
+```

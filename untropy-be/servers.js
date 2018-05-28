@@ -1,5 +1,6 @@
 const express = require('express');
 var mongoose = require('mongoose');
+var Client = require('ssh2').Client;
 
 mongoose.connect('mongodb://localhost:27017/untropy');
 var db = mongoose.connection;
@@ -8,12 +9,44 @@ var serversSchema = mongoose.Schema({
 	name: String,
 	ip: String,
 	checks: String,
+	time: Date,
+	result: String,
+	status: String
+	},
+{
+    versionKey: false
 });
 
 var servers = mongoose.model("servers", serversSchema);
 
 
 const serversRouter = express.Router();
+
+// ssh test
+serversRouter.get('/ssh', (req, res, next) => {
+  var conn = new Client();
+  conn.on('ready', function() {
+  console.log('Client :: ready');
+  conn.exec('uptime', function(err, stream) {
+    if (err) throw err;
+    stream.on('close', function(code, signal) {
+      console.log('Stream :: close :: code: ' + code + ', signal: ' + signal);
+      conn.end();
+    }).on('data', function(data) {
+      res.send('STDOUT: ' + data);
+    }).stderr.on('data', function(data) {
+      console.log('STDERR: ' + data);
+    });
+  });
+}).connect({
+  host: 'uvo120js2vp78fjtgle.vm.cld.sr',
+  port: 22,
+  username: 'root',
+  privateKey: require('fs').readFileSync('../\../\../\Users/\Administrator/\Documents/\priv-key.ppk')
+});
+
+});
+
 
 // Get all servers
 serversRouter.get('/', (req, res, next) => {
@@ -38,8 +71,6 @@ serversRouter.get('/:id', (req, res, next) => {
 // Create a server
 serversRouter.post('/', (req, res, next) => {
   var serverInfo = req.body;
-  //console.log(serverInfo.name);
-  //res.send("OK");
   if(!serverInfo.name || !serverInfo.ip || !serverInfo.checks){
       res.send("Sorry, you provided worng info");
    } 
@@ -47,7 +78,10 @@ serversRouter.post('/', (req, res, next) => {
       var newServer = new servers({
         name: serverInfo.name,
         ip: serverInfo.ip,
-        checks: serverInfo.checks
+        checks: serverInfo.checks,
+		time: Date.now(), 
+		result: "1111111111111111111111111111111111111111111111111",
+		status: "unknown"
       });
 		
       newServer.save(function(err, servers){
@@ -61,13 +95,10 @@ serversRouter.post('/', (req, res, next) => {
 
 // Update a server
 serversRouter.put('/:id', (req, res, next) => {
-  const serverIndex = getIndexById(req.params.id, servers);
-  if (serverIndex !== -1) {
-    updateElement(req.params.id, req.query, servers);
-    res.send(servers[serverIndex]);
-  } else {
-    res.status(404).send();
-  }
+   servers.findByIdAndUpdate(req.params.id, req.body, function(err, response){
+      if(err) res.json({message: "Error in updating server with id " + req.params.id});
+      res.send("success");
+   });
 });
 
 // Delete a single server
