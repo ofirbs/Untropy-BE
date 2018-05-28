@@ -31,7 +31,7 @@ http://localhost:3000/servers/<Server ID> [GET]
 ```
 
 ```
-http://localhost:3000/servers [PUT] 
+http://localhost:3000/servers [POST] 
 ```
 
 *(add params in the 'x-www-form-urlencoded' body {name:test, ip:10.0.0.1, checks:1111111111111111111111111111111111111111111111111"}) <br>*
