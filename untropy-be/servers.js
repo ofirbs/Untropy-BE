@@ -24,16 +24,26 @@ const serversRouter = express.Router();
 
 // ssh test
 serversRouter.get('/ssh', (req, res, next) => {
+
+  var fs = require('fs');
+  var script
+  try {  
+    script = fs.readFileSync('../\procedure.sh', 'utf8');
+    //console.log(script);    
+  } catch(e) {
+    console.log('Error:', e.stack);
+  }
+
   var conn = new Client();
   conn.on('ready', function() {
   console.log('Client :: ready');
-  conn.exec('uptime', function(err, stream) {
+  conn.exec('curl -s https://raw.githubusercontent.com/ofirbs/Untropy-BE/master/procedure.sh | bash /dev/stdin 1111111111111111111111111111111111111111111111111', function(err, stream) {
     if (err) throw err;
     stream.on('close', function(code, signal) {
       console.log('Stream :: close :: code: ' + code + ', signal: ' + signal);
       conn.end();
     }).on('data', function(data) {
-      res.send('STDOUT: ' + data);
+      res.send(''+data);
     }).stderr.on('data', function(data) {
       console.log('STDERR: ' + data);
     });

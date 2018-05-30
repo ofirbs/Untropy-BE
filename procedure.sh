@@ -719,11 +719,11 @@ function main()
   	if [ "${checks:48:1}" == "1" ]; then secure_yum_repos ; else should_not_func; fi
 
 	echo $RESULT
-	echo "should not be run: $SHOULD_NOT"
-	echo "could not be run: $COULD_NOT"
-	echo "successful: $SUCCESS"
-	echo "warnings: $WARNING"
-	echo "criticals: $CRITICAL"
+	#echo "should not be run: $SHOULD_NOT"
+	#echo "could not be run: $COULD_NOT"
+	#echo "successful: $SUCCESS"
+	#echo "warnings: $WARNING"
+	#echo "criticals: $CRITICAL"
 }
 
 main $@
