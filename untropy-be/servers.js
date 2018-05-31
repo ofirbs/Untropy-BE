@@ -19,21 +19,10 @@ var serversSchema = mongoose.Schema({
 
 var servers = mongoose.model("servers", serversSchema);
 
-
 const serversRouter = express.Router();
 
-// ssh test
-serversRouter.get('/ssh', (req, res, next) => {
-
-  var fs = require('fs');
-  var script
-  try {  
-    script = fs.readFileSync('../\procedure.sh', 'utf8');
-    //console.log(script);    
-  } catch(e) {
-    console.log('Error:', e.stack);
-  }
-
+var getResultFromServer = function(hostname) {
+  console.log('running on ' + hostname)
   var conn = new Client();
   conn.on('ready', function() {
   console.log('Client :: ready');
@@ -43,18 +32,45 @@ serversRouter.get('/ssh', (req, res, next) => {
       console.log('Stream :: close :: code: ' + code + ', signal: ' + signal);
       conn.end();
     }).on('data', function(data) {
-      res.send(''+data);
+      //res.send(''+data);
+      console.log(''+data)
+      servers.findOneAndUpdate({name: hostname}, {result: data, time: Date.now()}, function(err, response) {
+        console.log("updated server" + hostname)
+      });
+      //return ''+data;
     }).stderr.on('data', function(data) {
       console.log('STDERR: ' + data);
     });
   });
 }).connect({
-  host: 'uvo120js2vp78fjtgle.vm.cld.sr',
+  host: hostname,
   port: 22,
   username: 'root',
   privateKey: require('fs').readFileSync('../\../\../\Users/\Administrator/\Documents/\priv-key.ppk')
 });
+}
 
+
+// ssh test
+serversRouter.get('/ssh', (req, res, next) => {
+  let serversArray='a'
+  servers.find(function(err, response) {
+    //sshServerName=response[0].name
+    serversArray=response
+  });
+
+  setTimeout(function() {
+    //console.log(serversArray)
+    for (var i = 0; i < serversArray.length ; i++) {
+      console.log("running on server " + i + " :" + serversArray[i].name)
+      getResultFromServer(serversArray[i].name)
+      var waitTill = new Date(new Date().getTime() + 2000);
+      while(waitTill > new Date()){}
+    }
+    //result = getResultFromServer(sshServerName)
+}, 2000);
+
+  res.send("OK")
 });
 
 
