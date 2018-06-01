@@ -21,12 +21,12 @@ var servers = mongoose.model("servers", serversSchema);
 
 const serversRouter = express.Router();
 
-var getResultFromServer = function(hostname) {
+var getResultFromServer = function(hostname, checkList) {
   console.log('running on ' + hostname)
   var conn = new Client();
   conn.on('ready', function() {
   console.log('Client :: ready');
-  conn.exec('curl -s https://raw.githubusercontent.com/ofirbs/Untropy-BE/master/procedure.sh | bash /dev/stdin 1111111111111111111111111111111111111111111111111', function(err, stream) {
+  conn.exec('curl -s https://raw.githubusercontent.com/ofirbs/Untropy-BE/master/procedure.sh | bash /dev/stdin '+checkList, function(err, stream) {
     if (err) throw err;
     stream.on('close', function(code, signal) {
       console.log('Stream :: close :: code: ' + code + ', signal: ' + signal);
@@ -63,7 +63,7 @@ serversRouter.get('/ssh', (req, res, next) => {
     //console.log(serversArray)
     for (var i = 0; i < serversArray.length ; i++) {
       console.log("running on server " + i + " :" + serversArray[i].name)
-      getResultFromServer(serversArray[i].name)
+      getResultFromServer(serversArray[i].name, serversArray[i].checks)
       var waitTill = new Date(new Date().getTime() + 2000);
       while(waitTill > new Date()){}
     }

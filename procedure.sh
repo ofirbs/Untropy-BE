@@ -3,6 +3,7 @@
 # global variables
 declare -r NOCHECKS="49"
 declare RESULT=""
+declare STATUS=""
 declare -i SHOULD_NOT=0
 declare -i COULD_NOT=0
 declare -i SUCCESS=0
@@ -51,6 +52,20 @@ function config_globals()
 {
 	NIC=$(route | grep default | awk '{print $NF}')
 	IP=$(echo $NIC | xargs ifconfig | egrep "inet addr:|inet " | awk '{print $2}' | cut -d : -f 2)
+}
+
+# calculate the final status of the server
+function calc_status()
+{
+	if [ "$CRITICAL" -gt 0 ]; then
+		STATUS="Critical"
+	elif [ "$WARNING" -gt 0 ]; then
+		STATUS="Warning"
+	elif [ "$SUCCESS" -gt 0 ]; then
+		STATUS="Success"
+	else
+		STATUS="Unknown"
+	fi
 }
 
 # check if /var/log is mounted seperatly [WARNING]
@@ -164,7 +179,12 @@ function check_mount_params()
 # check if /var/tmp/ is mounted at /tmp [WARNING]
 function var_tmp()
 {
-return
+	 mount | grep -w "/tmp" | grep -w "/var/tmp" | grep -q "bind"
+	if [ $? -ne 0 ]; then
+		warning_func
+	else
+		success_func
+	fi
 }
 
 # disable autofs [WARNING]
@@ -718,7 +738,8 @@ function main()
   	if [ "${checks:47:1}" == "1" ]; then hosts_lines ; else should_not_func; fi
   	if [ "${checks:48:1}" == "1" ]; then secure_yum_repos ; else should_not_func; fi
 
-	echo $RESULT
+	calc_status
+	echo -n $RESULT,$STATUS
 	#echo "should not be run: $SHOULD_NOT"
 	#echo "could not be run: $COULD_NOT"
 	#echo "successful: $SUCCESS"
