@@ -15,11 +15,11 @@ app.use(function(req, res, next) {
 
 
 app.get('/', function(req, res){
-   res.send("Hello world2!");
+   res.send("Please use /servers, /checks, /procedures rest APIs");
 });
 
 
-// Import and mount the expressionsRouter
+// Import and mount the routers
 const serversRouter = require('./servers.js');
 app.use('/servers', serversRouter);
 

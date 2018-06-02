@@ -58,13 +58,13 @@ function config_globals()
 function calc_status()
 {
 	if [ "$CRITICAL" -gt 0 ]; then
-		STATUS="Critical"
+		STATUS="critical"
 	elif [ "$WARNING" -gt 0 ]; then
-		STATUS="Warning"
+		STATUS="warning"
 	elif [ "$SUCCESS" -gt 0 ]; then
-		STATUS="Success"
+		STATUS="ok"
 	else
-		STATUS="Unknown"
+		STATUS="unknown"
 	fi
 }
 

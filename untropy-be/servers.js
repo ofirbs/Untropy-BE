@@ -32,9 +32,16 @@ var getResultFromServer = function(hostname, checkList) {
       console.log('Stream :: close :: code: ' + code + ', signal: ' + signal);
       conn.end();
     }).on('data', function(data) {
-      //res.send(''+data);
+      
+      
       console.log(''+data)
-      servers.findOneAndUpdate({name: hostname}, {result: data, time: Date.now()}, function(err, response) {
+      //var dataArr = data + '';
+      var dataArr = data.toString().split(',');
+      //var dataArr2 = dataArr.split(',');
+
+      console.log("first: " + dataArr[0])
+      console.log("second: " + dataArr[1])
+      servers.findOneAndUpdate({name: hostname}, {result: dataArr[0], time: Date.now(), status: dataArr[1]}, function(err, response) {
         console.log("updated server" + hostname)
       });
       //return ''+data;
@@ -94,9 +101,14 @@ serversRouter.get('/:id', (req, res, next) => {
   });
 });
 
-// Create a server
+// Add a server
 serversRouter.post('/', (req, res, next) => {
   var serverInfo = req.body;
+  console.log(serverInfo)
+  console.log("server name: " + serverInfo.name)
+  console.log("server ip: " + serverInfo.ip)
+  console.log("server checks: " + serverInfo.checks)
+
   if(!serverInfo.name || !serverInfo.ip || !serverInfo.checks){
       res.send("Sorry, you provided worng info");
    } 
@@ -105,9 +117,9 @@ serversRouter.post('/', (req, res, next) => {
         name: serverInfo.name,
         ip: serverInfo.ip,
         checks: serverInfo.checks,
-		time: Date.now(), 
-		result: "1111111111111111111111111111111111111111111111111",
-		status: "unknown"
+		    time: Date.now(), 
+		    result: "1111111111111111111111111111111111111111111111111",
+		    status: "unknown"
       });
 		
       newServer.save(function(err, servers){
@@ -116,6 +128,8 @@ serversRouter.post('/', (req, res, next) => {
          else
             res.send("success");
       });
+
+      getResultFromServer(serverInfo.name, serverInfo.checks)
 	}
 });
 
