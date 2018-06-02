@@ -1,6 +1,7 @@
 const express = require('express');
 var mongoose = require('mongoose');
 var Client = require('ssh2').Client;
+var cron = require('node-schedule');
 
 mongoose.connect('mongodb://localhost:27017/untropy');
 var db = mongoose.connection;
@@ -33,18 +34,10 @@ var getResultFromServer = function(hostname, checkList) {
       conn.end();
     }).on('data', function(data) {
       
-      
-      console.log(''+data)
-      //var dataArr = data + '';
       var dataArr = data.toString().split(',');
-      //var dataArr2 = dataArr.split(',');
-
-      console.log("first: " + dataArr[0])
-      console.log("second: " + dataArr[1])
       servers.findOneAndUpdate({name: hostname}, {result: dataArr[0], time: Date.now(), status: dataArr[1]}, function(err, response) {
         console.log("updated server" + hostname)
       });
-      //return ''+data;
     }).stderr.on('data', function(data) {
       console.log('STDERR: ' + data);
     });
@@ -58,28 +51,42 @@ var getResultFromServer = function(hostname, checkList) {
 }
 
 
-// ssh test
+/*// ssh test
 serversRouter.get('/ssh', (req, res, next) => {
   let serversArray='a'
   servers.find(function(err, response) {
-    //sshServerName=response[0].name
     serversArray=response
   });
 
   setTimeout(function() {
-    //console.log(serversArray)
     for (var i = 0; i < serversArray.length ; i++) {
       console.log("running on server " + i + " :" + serversArray[i].name)
       getResultFromServer(serversArray[i].name, serversArray[i].checks)
       var waitTill = new Date(new Date().getTime() + 2000);
       while(waitTill > new Date()){}
     }
-    //result = getResultFromServer(sshServerName)
 }, 2000);
 
   res.send("OK")
-});
+});*/
 
+cron.scheduleJob('* 30 * * * *', function(){
+  console.log(Date.now())
+  let serversArray='a'
+  servers.find(function(err, response) {
+    serversArray=response
+  });
+
+  setTimeout(function() {
+    for (var i = 0; i < serversArray.length ; i++) {
+      console.log("running on server " + i + " :" + serversArray[i].name)
+      getResultFromServer(serversArray[i].name, serversArray[i].checks)
+      var waitTill = new Date(new Date().getTime() + 2000);
+      while(waitTill > new Date()){}
+    }
+}, 2000);
+
+});
 
 // Get all servers
 serversRouter.get('/', (req, res, next) => {
