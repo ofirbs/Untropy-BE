@@ -18,7 +18,7 @@ const proceduresRouter = express.Router();
 // Get all procedures
 proceduresRouter.get('/', (req, res, next) => {
   procedures.find(function(err, response) {
-  if (err) throw err;
+  if (err) console.log(err);
 
 	res.send(response);
   });
@@ -30,7 +30,7 @@ proceduresRouter.get('/:id', (req, res, next) => {
   const serverId = req.params.id;
   
   procedures.find({"_id" : serverId},function(err, response) {
-	if (err) throw err;
+	if (err) console.log(err);
 	
 	res.send(response);
   });

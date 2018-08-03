@@ -18,19 +18,18 @@ const checksRouter = express.Router();
 // Get all checks
 checksRouter.get('/', (req, res, next) => {
   checks.find(function(err, response) {
-  if (err) throw err;
+  if (err) console.log(err);
 
 	res.send(response);
   });
 });
-
 
 // Get a single check
 checksRouter.get('/:id', (req, res, next) => {
   const checkId = Number(req.params.id);
   
   checks.find({position:checkId},function(err, response) {
-	if (err) throw err;
+	if (err) console.log(err);
 	
 	res.send(response);
   });

@@ -28,7 +28,7 @@ var getResultFromServer = function(hostname, checkList) {
   conn.on('ready', function() {
   console.log('Client :: ready');
   conn.exec('curl -s https://raw.githubusercontent.com/ofirbs/Untropy-BE/master/procedure.sh | bash /dev/stdin '+checkList, function(err, stream) {
-    if (err) throw err;
+    if (err) console.log(err);
     stream.on('close', function(code, signal) {
       console.log('Stream :: close :: code: ' + code + ', signal: ' + signal);
       conn.end();
@@ -92,7 +92,7 @@ serversRouter.get('/ssh', (req, res, next) => {
 // Get all servers
 serversRouter.get('/', (req, res, next) => {
   servers.find(function(err, response) {
-  if (err) throw err;
+  if (err) console.log(err);
 
 	res.send(response);
   });});
@@ -107,25 +107,27 @@ serversRouter.get('/health', (req, res, next) => {
             }
         }
     ], function (err, result) {
-        if (err) throw err;
+        if (err) console.log(err);
         res.send(result);
     });
 });
 
+// first query
 serversRouter.get('/querya/:health/:time', (req, res, next) => {
   var healthStatus = req.params.health;
   var timeToCheck = new Date( Date.now() - req.params.time * 1000 * 60 ); 
   
   servers.find({status: healthStatus, time : { $gte: timeToCheck}}, function(err, response) {
-  if (err) throw err;
+  if (err) console.log(err);
 
   res.send(response);
   });
 });
 
+// second query
 serversRouter.get('/queryb/:name/:ok/:warning/:critical', (req, res, next) => {
   servers.find({"name" : { '$regex' : req.params.name, '$options' : 'i' }}, function(err, response) {
-  if (err) throw err;
+  if (err) console.log(err);
 
   var dataArr = [];
   var okNum = 0;
@@ -159,7 +161,7 @@ serversRouter.get('/:id', (req, res, next) => {
   const serverId = req.params.id;
   
   servers.find({"_id" : serverId},function(err, response) {
-	if (err) throw err;
+	if (err) console.log(err);
 	
 	res.send(response);
   });
@@ -210,7 +212,7 @@ serversRouter.put('/:id', (req, res, next) => {
 serversRouter.delete('/:id', (req, res, next) => {
   const serverId = req.params.id;
   servers.remove({"_id" : serverId},function(err, response) {
-	if (err) throw err;
+	if (err) console.log(err);
 	res.send(response);
   });
 });
