@@ -46,12 +46,13 @@ var getResultFromServer = function(hostname, checkList) {
   host: hostname,
   port: 22,
   username: 'root',
+  readyTimeout: 99999,
   privateKey: require('fs').readFileSync('../\../\../\Users/\Administrator/\Documents/\priv-key.ppk')
 });
 }
 
 
-/*// ssh test
+// ssh test
 serversRouter.get('/ssh', (req, res, next) => {
   let serversArray='a'
   servers.find(function(err, response) {
@@ -68,25 +69,25 @@ serversRouter.get('/ssh', (req, res, next) => {
 }, 2000);
 
   res.send("OK")
-});*/
-
-cron.scheduleJob('* 30 * * * *', function(){
-  console.log(Date.now())
-  let serversArray='a'
-  servers.find(function(err, response) {
-    serversArray=response
-  });
-
-  setTimeout(function() {
-    for (var i = 0; i < serversArray.length ; i++) {
-      console.log("running on server " + i + " :" + serversArray[i].name)
-      getResultFromServer(serversArray[i].name, serversArray[i].checks)
-      var waitTill = new Date(new Date().getTime() + 2000);
-      while(waitTill > new Date()){}
-    }
-}, 2000);
-
 });
+
+//cron.scheduleJob('* */30 * * * *', function(){
+//  console.log("running the cron at: " + Date.now())
+//  let serversArray='a'
+//   servers.find(function(err, response) {
+//     serversArray=response
+//   });
+
+//   setTimeout(function() {
+//     for (var i = 0; i < serversArray.length ; i++) {
+//       console.log("running on server " + i + " :" + serversArray[i].name)
+//       getResultFromServer(serversArray[i].name, serversArray[i].checks)
+//       var waitTill = new Date(new Date().getTime() + 2000);
+//       while(waitTill > new Date()){}
+//     }
+// }, 2000);
+
+// });
 
 // Get all servers
 serversRouter.get('/', (req, res, next) => {
@@ -96,7 +97,32 @@ serversRouter.get('/', (req, res, next) => {
 	res.send(response);
   });});
 
+// Group servers by health status
+serversRouter.get('/health', (req, res, next) => {
+  servers.aggregate([
+        {
+            $group: {
+                _id : "$status",
+                count: {$sum: 1}
+            }
+        }
+    ], function (err, result) {
+        if (err) throw err;
+        res.send(result);
+    });
+});
+
+serversRouter.get('/querya/:health/:time', (req, res, next) => {
+  var healthStatus = req.params.health;
+  var timeToCheck = new Date( Date.now() - req.params.time * 1000 * 60 ); 
   
+  servers.find({status: healthStatus, time : { $gte: timeToCheck}}, function(err, response) {
+  if (err) throw err;
+
+  res.send(response);
+  });
+});
+
 // Get a single server
 serversRouter.get('/:id', (req, res, next) => {
   const serverId = req.params.id;
@@ -107,6 +133,7 @@ serversRouter.get('/:id', (req, res, next) => {
 	res.send(response);
   });
 });
+
 
 // Add a server
 serversRouter.post('/', (req, res, next) => {
