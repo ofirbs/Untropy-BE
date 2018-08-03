@@ -50,6 +50,15 @@ Second parameters - the maximum number of minutes passed from the last check
 http://localhost:3000/servers/<STATUS>/<MINUTES> [GET]
 ```
 
+First parameter - the server name (Can be a part of it's name - like search)<br>
+Second parameters - the minimum number of success checks<br>
+Third parameter - the minumum number of warning checks<br>
+Fouth parameter - the minumum number of critical checks<br>
+
+```
+http://uvo10ntf2e964aukvam.vm.cld.sr/servers/queryb/<NAME>/<OK>/<WARNING>/<CRITICAL> [GET]
+```
+<br>
 Group servers by health status
 ```
 http://localhost:3000/servers/health [GET]
