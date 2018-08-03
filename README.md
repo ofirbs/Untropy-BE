@@ -42,3 +42,15 @@ http://localhost:3000/servers/<Server ID> [DELETE]
 ```
 http://localhost:3000/servers/<Server ID> [PUT]
 ```
+* Queries: <br>
+
+First parameter - the health status of the server
+Second parameters - the maximum number of minutes passed from the last check
+```
+http://localhost:3000/servers/<STATUS>/<MINUTES> [GET]
+```
+
+Group servers by health status
+```
+http://localhost:3000/servers/health [GET]
+```
