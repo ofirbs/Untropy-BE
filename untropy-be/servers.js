@@ -123,6 +123,37 @@ serversRouter.get('/querya/:health/:time', (req, res, next) => {
   });
 });
 
+serversRouter.get('/queryb/:name/:ok/:warning/:critical', (req, res, next) => {
+  servers.find({"name" : { '$regex' : req.params.name, '$options' : 'i' }}, function(err, response) {
+  if (err) throw err;
+
+  var dataArr = [];
+  var okNum = 0;
+  var warningNum = 0;
+  var criticalNum = 0;
+
+  for (var i = 0; i < response.length ; i++) {
+    for (var j = 0; j < response[i].result.length ; j++) {
+      if (response[i].result[j] == 2)
+        okNum++;
+      else if (response[i].result[j] == 3)
+        warningNum++;
+      else if (response[i].result[j] == 4)
+        criticalNum++;
+    }
+    if (okNum >= req.params.ok && warningNum >= req.params.warning && criticalNum >= req.params.critical)
+      dataArr.push(response[i]);
+    okNum = 0;
+    warningNum = 0;
+    criticalNum = 0;
+  }  
+  console.log(dataArr);
+  res.send(dataArr);
+  });
+});
+
+
+
 // Get a single server
 serversRouter.get('/:id', (req, res, next) => {
   const serverId = req.params.id;
