@@ -114,6 +114,7 @@ serversRouter.get('/health', (req, res, next) => {
 
 // first query
 serversRouter.get('/querya/:health/:time', (req, res, next) => {
+  console.log("Initiated Query A");
   var healthStatus = req.params.health;
   var timeToCheck = new Date( Date.now() - req.params.time * 1000 * 60 ); 
   
@@ -153,7 +154,6 @@ serversRouter.get('/queryb/:name/:ok/:warning/:critical', (req, res, next) => {
   res.send(dataArr);
   });
 });
-
 
 
 // Get a single server
